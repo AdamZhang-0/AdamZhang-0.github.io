@@ -1,0 +1,1094 @@
+```
+title: 程序人生-Hello‘s P2P
+date: 2020-5-25 0:00:00
+description: From program to process，From zero to zero
+categories:
+ - CSAPP
+tags:
+```
+
+
+
+
+
+# 程序人生-Hello’s P2P 
+
+## 第1章 概述
+
+### 1.1 Hello简介
+
+​	学艺不精，若有错误的地方请您指正。
+
+​	hello程序的生命周期是从一个源程序开始的，程序员通过编辑器创建的一个文本文件，即本文的hello.c文件。
+
+Hello.c的源码包括注释如下：
+
+```
+// 大作业的 hello.c 程序
+// gcc -m64 -Og -no-pie -fno-PIC hello.c -o hello
+// 程序运行过程中可以按键盘，如不停乱按，包括回车，Ctrl-Z，Ctrl-C等。
+// 可以 运行 ps  jobs  pstree fg 等命令
+#include <stdio.h>
+#include <unistd.h> 
+#include <stdlib.h>
+int main(int argc,char *argv[]){
+	int i;
+	if(argc!=4){
+		printf("用法: Hello 学号 姓名 秒数！\n");
+		exit(1);
+	}
+	for(i=0;i<8;i++){
+		printf("Hello %s %s\n",argv[1],argv[2]);
+		sleep(atoi(argv[3]));
+	}
+	getchar();
+	return 0;
+}
+```
+
+​	对我们而言，在代码编辑器内输入C语言代码再进行编译之后任务就结束了，但是对计算机来说，还要经过复杂的处理过程，即P2P：From program to process。这个过程一共分为四个阶段，分别是预处理阶段、编译阶段、汇编阶段和链接阶段。经过这四个阶段后得到了可执行目标文件，而后存放在磁盘空间中。接下来我们要想在Linux上运行这个文件的话，需要用到命令行解释器shell。打开shell，当敲下回车后，shell会先fork一个新进程，然后通过execve机制加载并执行hello，同时映射虚拟内存。在达到程序入口点后将程序载入物理内存中，CPU此时为运行的程序分配时间片执行逻辑控制流。当程序运行结束后，父进程会负责回收hello的进程并清楚分配的内存空间和数据结构，这个从0开始，以0结束的过程就是020：From zero to zero。hello也走完了它平淡的一生，但对于我们而言，其中要深入探究的东西就太丰富了。
+
+### 1.2 环境与工具
+
+​	硬件环境：X64 CPU；1.80GHZ；8G RAM；475GHD Disk；
+
+​	软件环境：Windows 10 64位；VMware 15 pro；Ubuntu-18.04 LTS；
+
+### 1.3 中间结果
+
+​	hello.c：源程序
+
+​	hello.i：预处理文件
+
+​	hello.s：编译文件
+
+​	hello.o：汇编后的可重定位文件
+
+​	hello_o.S：可重定位文件的反汇编
+
+​	hello：可执行文件
+
+​	hello.S：可执行文件反汇编
+
+​	hello.elf：hello的elf
+
+​	hello.txt：hello.o的ELF格式
+
+### 1.4 本章小结
+
+​	在本章我们对hello.c及其的生命周期进行了简单介绍，分析了P2P和020过程的本质。
+
+## 第2章 预处理
+
+### 2.1 预处理的概念与作用
+
+​	预处理是在编译前对程序进行处理的过程，预处理器对源程序进行词法分析，识别出各种关键字。
+
+​	C语言的预处理主要是对三个部分进行处理：
+
+​	一是宏定义，宏定义可以带参数也可以不带参数，不带参数的一般形式是#define+标识符+字符串(不是语句可以不加分号)，主要作用就是用一个特定的标识符来代表一个字符串。预处理器处理宏定义时就将宏名替换为我们自己设置文本，但是不做正确性检查。带参数的宏定义有时比函数更具优越性，hello程序内没有宏定义，这里不做深入讨论。
+
+​	二是文件包含，一般形式是#include后加文件名。一般情况下标准头文件是采用尖头括号，若是自己编写的头文件，可以将尖括号换为引号，系统会优先在当前目录查找文件，或在#include后添加路径。预处理器cpp根据以字符#开头的命令，修改原始的C程序。hello.c中第一行#include<stdio.h>命令告诉预处理器读取系统头文件stdio.h的内容，并把它直接插入程序文本中，接着还有unisted.h和stdlib.h，处理方式与stdio.h相同。头文件的内容主要是各种函数原型和宏定义，除此之外还有全局变量和结构体的定义等。
+
+​	三是条件编译。常用的是#ifdef和#endif组合。指定编译条件后就可以更加灵活的编译，可以有效避免头文件的重复预处理。
+
+​	四是预处理符号。我们自己可以在编写的程序中就加入预处理符号，如_LINE_、_FILE_等等。可以实现在源代码中插入有效信息，如当前代码行号，编译日期，编译时间等等。可提高预处理效率，提升程序可读性，扩大了设计空间。
+
+​	以上四个对象都处理过后我们可以通过编译器生成预处理文件，通常是以.i作为文件扩展名。预处理过程简单概括就是词法分析和替代，生成一个没有宏定义，没有条件编译指令，没有特殊符号的输出文件。这个文件的含义与实质并没有改变，仅仅是内容上有所不同而已。
+
+### 2.2在Ubuntu下预处理的命令
+
+gcc下预处理器具有如下选项
+
+![image-20200525004558747](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525004558747.png)
+
+其中，-E即预处理后立即停止，不再进行编译。预处理后的代码送往标准输出，仅限C预处理器预处理所有指定的C源文件。
+
+执行如下命令可得到预处理文件hello.i
+
+![image-20200525004544135](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525004544135.png)
+
+###  2.3 Hello的预处理结果解析
+
+​	我们可以利用vim编辑器来查看生成的预处理文件。据前文所述，预处理器将#define删除，展开所有宏定义，处理所有条件编译指令等等。当处理文件包含时是将里面的文件以递归的插入对应位置，保留所有编译器指令，并添加行号信息留给后续流程。如下图1中每条指令后面的数字，其中1表示新文件开始，2表示返回到文件，3表示以下文本来自系统头文件，4表示以下文本视为包含隐式extern块中。
+
+​    浏览整个文件，我们可以发现各种定义方式，如extern、struct、typedef等等。这些都是头文件里的内容。
+
+![image-20200525000124433](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525000124433.png)
+
+![image-20200525000133160](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525000133160.png)
+
+![image-20200525000138211](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525000138211.png)
+
+​	在上千行的预处理文件的最后可看到我们自己编写的源程序，除了注释被删除外并没有变化。
+
+![image-20200525000151275](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525000151275.png)
+
+### 2.4 本章小结
+
+​	本章介绍了预处理过程，预处理操作算是对程序词法的第一遍扫描，完善程序文本，也是能让我们编写的程序能被计算机理解的第一步操作。接下来是编译阶段。
+
+##  第3章 编译
+
+### 3.1 编译的概念与作用
+
+​	hello.c经过预处理后，如今只有C语言的关键字、常量和变量与函数的定义等等。那么编译过程要做的工作就是对预处理后生成的文件(字符流)进行进一步的词法分析、语法分析、语义分析，确定没有语法错误后编译器ccl将会将生成的文本文件hello.i翻译成文本文件hello.s。值得注意的是生成的可读文件后缀是小写的s，意味着后期不用再进行预处理操作，里面不可能包含预处理的语句。若是大写的S，我们是可以对文件进行编辑并预处理的。
+
+​	编译的同时还会对程序进行优化。优化在编译过程中是一项比较晦涩的技术，它不仅与编译技术本身相关，还与硬件环境有很深的关系。优化技术中一部分是对中间代码的优化。这种优化不依赖于具体的计算机。另一种优化则主要针对目标代码的生成而进行的。对于前一种优化，主要的工作是删除公共表达式、循环优化(代码外提、强度削弱、变换循环控制条件、已知量的合并等)、复写传播，以及无用赋值的删除等等。后一种类型的优化同机器的硬件结构密切相关，最主要的是考虑是如何充分利用机器的各个硬件寄存器存放的有关变量的值，以减少对于内存的访问次数。另外，如何根据机器硬件执行指令的特点(如流水线、RISC、CISC、VLIW等)而对指令进行一些调整使目标代码比较短，执行的效率比较高，也是一个重要的研究课题。这涉及较深的编译原理的知识，这里不做讨论。
+
+​	经过了编译和优化后，我们得到的仍然是可读的文本文件，CPU还是无法理解并执行。
+
+### 3.2 在Ubuntu下编译的命令
+
+![image-20200525000253900](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525000253900.png)
+
+### 3.3 Hello的编译结果解析
+
+​	利用vim编辑器查看生成的文本文件，可见所有高级语言都被替换为汇编语句，如下图，此时文本由原来的一千多行变为短短的近百行。
+
+![image-20200525000316619](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525000316619.png)
+
+​	我们简单解析一下hello.s代码。
+
+​	汇编程序主要由三个不同的元素组成：
+
+​	第一是指示信息，点号开始，用于指示对编译器，链接器，调试器有用的结构信息，如.file，.data等等。但指令本身不属于汇编指令。
+
+​	第二是以冒号结尾的标签信息，负责将标签名和标签出现的位置关联起来。如LC0：表示紧接着的字符串名称为.LC0。标签main表示指令pushq %rbp是main函数的第一个指令。按照惯例，以点号开始的标签都是编译器生成的临时局部标签，其他标签都是用户可见的函数和全局变量名称。
+
+​	第三就是我们熟悉的汇编指令。
+
+```
+.file   "hello.c"   //源文件名hello.c
+   .text            //text节
+   .section //定义内存段指令       .rodata     //rodata节，声明只读数据
+   .align 8 //指令对齐，声明对其方式为2^8
+.LC0:       //标号
+   .string "\347\224\250\346\263\225: Hello \345\255\246\345\217\267 \345\247\223\345\220\215 \347\247\222\346\225\260\357\274\201"  //声明字符串
+.LC1:
+   .string "Hello %s %s\n"  
+   .text	 //声明代码段
+   .globl  main       //全局符号，为使链接器能够识别main
+   .type   main, @function                  //main的类型设置为函数
+
+```
+
+​	下方就是hello.c的main函数，我们可以发现由很多cfi指令，这些指令的作用就是当异常出现时stack的回滚，而这个回滚过程是一级级的cfa往上退，直到异常被catch。
+
+​	根据DWARF4的标准，cfi定义为执行call时SP指向的地址。上方hello.s代码中每个子程序块都是以.cfi_startproc开始，以.cfi_endproc结束。也就是说每个函数开头都有一个.cfi_startproc，它是用来初始化栈的内部数据结构、指令的发射机构以及栈的初始入口，同时.cfi_endproc是用来关闭.cfi_startproc的入口。
+
+```
+main:              //标号
+.LFB5:
+   .cfi_startproc  //cfi指令，初始化栈入口、栈数据结构和指令发射。若假设这时的栈帧rbp的值是a，则rsp的值是a-M。
+   pushq   %rbp    // 完成这条指令后的栈帧rsp值为a-M-0x10，同时把rbp的值a存入a-M-0x10这个栈地址所指的空间单元； 
+   .cfi_def_cfa_offset 16
+   .cfi_offset 6, -16  //这两条指令是指在pushl指令执行完后，sp与CFA完成了16字节的绝对偏移。
+   movq    %rsp, %rbp  //修改rbp值，即让rbp与rsp所指为同一栈地址空间；即它们现在的值都是a-M-0x10
+   .cfi_def_cfa_register 6 //执行完上面一条指令后cfa_register不再是rsp，而是rbp
+   subq    $32, %rsp  //将rsp的值减32，现在rsp的值是a-M-0x30
+   movl    %edi, -20(%rbp) // 取argc的值保存入栈
+   movq    %rsi, -32(%rbp)	//取argv，即数组首地址
+   cmpl    $4, -20(%rbp) //将argc的值与4做比较,即源程序的if
+   je      .L2           //若等于就跳转至.L2
+   leaq    .LC0(%rip), %rdi  //打印的字符串 
+   call    puts@PLT //编译器添加的中间函数，为动态链接做准备
+   movl    $1, %edi //exit的参数为1
+   call    exit@PLT //调用共享库函数exit退出
+.L2:
+   movl    $0, -4(%rbp) //定义int i，赋予初值0 
+   jmp     .L3 //跳转到.L3
+.L4:  
+   movq    -32(%rbp), %rax  //取argv首地址入rax中
+   addq    $16, %rax //给rax加上16，为argv[1]的地址
+   movq    (%rax), %rdx // 将该地址的值赋入rdx，即argv[1]
+   movq    -32(%rbp), %rax //取argv的值入rax中
+   addq    $8, %rax   //给rax加上8，为argv[2]的地址
+   movq    (%rax), %rax  
+   movq    %rax, %rsi  //将argv[2]的值存入rsi中
+   leaq    .LC1(%rip), %rdi  //取字符串
+   movl    $0, %eax  //给printf函数设置返回值
+   call    printf@PLT
+   movq    -32(%rbp), %rax  //取argv首地址入rax中
+   addq    $24, %rax //给rax加上24，为argv[3]的地址
+   movq    (%rax), %rax// 将该地址对应的值赋入rax，即argv[3]
+   movq    %rax, %rdi //为atoi函数传参
+   call    atoi@PLT //调用函数
+   movl    %eax, %edi //为sleep设置参数
+   call    sleep@PLT
+   addl    $1, -4(%rbp)
+.L3:
+   cmpl    $7, -4(%rbp)   //将i的值与7作比较
+   jle     .L4  //若小于跳转至.L4，为for循环内部
+   call    getchar@PLT 
+   movl    $0, %eax //设置返回值
+   leave //相当与mov %rbp，%rsp
+				  pop %rbp
+   .cfi_def_cfa 7, 8
+   ret //函数结束 
+   .cfi_endproc
+.LFE5:
+   .size   main, .-main //设置symbol main的大小，“.-main”：从当前位置到main
+   .ident  "GCC: (Ubuntu 7.5.0-3ubuntu1~18.04) 7.5.0"//备注编译器版本
+   .section        .note.GNU-stack,"",@progbits // 意思是这个segment会被标记为 “非可执行栈”（栈中不能存可执行的指令，只存数据）
+
+```
+
+​	简单对汇编代码的关键点进行总结：
+
+​	**1.数据部分：**hello.c中的数据包括整数、数组和字符串
+
+​	其中，整数部分int i汇编形式是
+
+```
+movl    $0, -4(%rbp)
+```
+
+​	argc
+
+```
+movl    %edi, -20(%rbp)
+```
+
+​	char *argv[]
+
+```
+movq    %rsi, -32(%rbp)
+```
+
+​	字符串 .string "\347\224\250\346\263\225: Hello \345\255\246\345\217\267 \345\247\223\345\220\215 \347\247\222\346\225\260\357\274\201"为utf-8格式编码。一个汉字在utf-8中占三个字节。故该字符串为"用法: Hello 学号 姓名 秒数！\n"
+
+​	第二个字符串.string "Hello %s %s\n"也存放在.rodata只读段中，为"Hello %s %s\n"。
+
+​	**2.算数操作：**代码中一共有两组算数操作，一是for循环中的i++，在代码中具体表现为 
+
+```
+addl    $1, -4(%rbp)
+.L3:
+cmpl    $7, -4(%rbp)  
+jle     .L4
+```
+
+​	另一个是leaq计算段地址，具体表现为：
+
+```
+leaq    .LC0(%rip), %rdi
+...
+leaq    .LC1(%rip), %rdi
+```
+
+​	用来取两处的字符串来进行打印。
+
+​	**3.关系操作：**一共有两处，一处是if的条件判断
+
+```
+cmpl    $4, -20(%rbp)
+```
+
+​	另一处是for里面i<8的判定
+
+```
+cmpl    $7, -4(%rbp)
+```
+
+​	**4.控制转移：**一共有两处，一处是if判断的转移
+
+```
+je      .L2
+```
+
+​	另一处是for循环的跳转。
+
+​	**5.数组操作：** 源程序的数组只有argv[i]，单个元素char*大小为8位，argv指针指向已经分配好的、一片存放着字符指针的连续空间，起始地址为argv。
+
+​	在for循环过程中每次都要访问一遍所在的内存。一般argv是存放在用户栈上，靠基址加上偏移量访问每个元素。
+
+​	**6.函数操作：**函数操作需要传参传递控制，还要分配与释放内存。源程序中调用了5个函数。为main、printf、exit、sleep、getchar和atoi。另外还有共享库函数，为动态链接打下基础。
+
+​	至此对hello.s的解析结束。
+
+### 3.4 本章小结
+
+​	根据我们刚才的分析可发现，程序内存分配已经初具雏形。接下来就是汇编阶段，即生成可重定位目标文件。
+
+## 第4章 汇编
+
+### 4.1 汇编的概念与作用
+
+​	在编译结束后，汇编器as会将hello.s中每一条汇编语句都翻译成对应的机器语言指令，并把这些指令打包成一种叫做可重定位目标程序的格式，并将结果保存在目标文件hello.o中。hello.o文件是一个二进制文件，如果在文本编辑器中打开hello.o文件，我们将看到一堆乱码。现在已经不再是可读的文本文件了。
+
+### 4.2 在Ubuntu下汇编的命令
+
+![image-20200525001537724](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525001537724.png)
+
+![image-20200525001542335](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525001542335.png)
+
+### 4.3 可重定位目标elf格式
+
+​	ELF格式的可执行文件大体格式如表格所示
+
+| ELF头     |
+| --------- |
+| .text     |
+| .rodata   |
+| .data     |
+| .bss      |
+| .symtab   |
+| .rel.text |
+| .rel.data |
+| .debug    |
+| .line     |
+| .strtab   |
+| 节头部表  |
+
+​	首先是ELF头，以一个16字节的序列开始，用来描述文件系统字的大小、字节顺序，ELF头剩下的部分包含帮助链接器语法分析和解释目标文件的信息。其中包括ELF头的大小、目标文件的类型、机器类型、节头部表中条目的大小和数量，还包括程序的入口点。
+
+![image-20200525001621504](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525001621504.png)
+
+​	以上图片中，magic的头四个字节7f 45 4c 46说明该文件是ELF格式，因可重定位文件不可执行，因此没有程序头表。这样，程序头起点、程序大小、程序头表中表项的个数都为0。
+
+​    之后夹在ELF头和节头部表之间的就是各种节，主要包含如下的节
+
+​	.text: 为已编译程序的机器代码。
+
+​	.rel.text节: 一个.text节中位置的列表，链接器链接其他文件时，需修改这些内容。
+
+​	.rel.data节：被模块引用或定义的所有全局变量的重定位信息。一般而言，任何已初始化的全局变量，如果初始值是一个全局变量的地址或者外部定义函数的地址，则都需要修改。
+
+​    .rodata: 只读数据，如printf语句中的格式串和开关语句中的跳转表。
+
+​    .data: 已初始化的全局和静态C变量。
+
+​    .bss: 未初始化的全局和C静态变量，以及所有被初始化为0的全局或静态变量。在目标文件中这个节不占用实际的空间，仅仅是一个占位符。目标文件格式区分已初始化和未初始化变量是为了空间效率，在目标文件中，未初始化的变量不需要占据任何实际的磁盘空间。运行时在内存中分配这些变量，初始值为0。
+
+​    .symtab节: 为一个符号表，存放在程序中定义和引用的函数和全局变量的信息。
+
+​    .debug: 一个调试符号表，条目是程序中定义的局部变量和类型定义，程序中定义和引用的全局变量，以及原始的C源文件。
+
+​    .line: 原始C源程序中的行号和.text节中机器指令之间的映射。
+
+​    .strtab: 一个字符串表，其内容包括.symtab和.debug节中的符号表，以及节头部中的节名字。
+
+最后就是节头部表，用来描述目标文件中的节。
+
+​	符号表用readelf查看，如下图
+
+![image-20200525001646230](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525001646230.png)
+
+​	前文已知符号表用来存放程序中定义和引用的函数和全局变量的信息。简单解析一下，Name表示字符串在字符串表中的下标，value表述距离定义目标的节起始位置的偏移，NDx是节头部表的索引，数字对应着节头部表的节。Bind中GLOBAL表示被外部引用或者引用外部的函数和变量，而图中的UND代表未定义的符号，ABS表示不该被重定义的符号，代表强引用。所以看上图，puts，exit这些函数为GLOBAL UND意味着这些函数是在另外的文件定义的，不能在本文件中进行引用。我们从中并没有发现hello.c中的局部变量i，是因为程序中的非静态局部变量既不在数据段也不在代码段中，很有可能是在堆栈段中。
+
+我们查看一下节头部表。
+
+![image-20200525001700965](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525001700965.png)
+
+​	其中Offset就是段偏移，Type中PROGBITS表示段，NOBITS表示该段不占空间，RELA表示重定位段，STRTAB吧iOS字符串表，SYMTAB表示符号表，ENTSize表示如果段中由重复内容，则表示重复内容大小，如符号表。
+
+​	在TYPE为RELA时，Link表示该段所使用的相应符号表在段表中，本例中为10。Info表示该重定位表所作用的段在段表中的下标。
+
+​	根据节头部表，我们可以整理出可重定位文件的整体轮廓。
+
+| 0-0x40      | ELF头           |
+| ----------- | --------------- |
+| 0x40-0xce   | .text           |
+| 0xce-0xce   | .data           |
+| 0xce-0xce   | .bss            |
+| 0xd0-0x103  | .rodata         |
+| 0x103-0x12d | .comment        |
+| 0x12d-0x12d | .note.GNU-stack |
+| 0x130-0x168 | .eh_frame       |
+| 0x168-0x300 | .symtab         |
+| 0x300-0x348 | .strtab         |
+| 0x348-0x408 | .rela.text      |
+| 0x408-0x420 | .rela.eh_frame  |
+| 0x420-0x481 | .shstrtab       |
+
+​	从ELF头可知节头部表的偏移量是1160，换算为16进制就是0x488。再根据节头大小为64字节，故节头部表是从0x488-0x788。
+
+​	上面有些是可重定位文件中没有在基本结构中出现的节，如.shstrtab，为段表字符串表，里面存放的就是.rodata、.bss等名称。
+
+​	可重定位文件独有的就是重定位信息。重定位是将EFL文件中未定义符号关联到有效值的处理过程。在hello.o中，对printf等函数未定义的引用都被替换为进程的虚拟地址空间中机器代码所在的地址。如下图所示
+
+![image-20200525001741351](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525001741351.png)
+
+### 4.4 Hello.o的结果解析
+
+​	简单的介绍过可重定位文件的格式之后，我们以hello.o为例。分析hello.o的反汇编
+
+```
+objdump -d -r hello.o 
+```
+
+![image-20200525001829642](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525001829642.png)
+
+​	首先分析代码段：
+
+```
+hello.o:     file format elf64-x86-64
+Disassembly of section .text:
+0000000000000000 <main>:
+   0:	55                   push   %rbp
+   1:	48 89 e5             	mov    %rsp,%rbp
+   4:	48 83 ec 20          	sub    $0x20,%rsp //为栈分配空间
+   8:	89 7d ec             	mov    %edi,-0x14(%rbp)  //取argc的值保存入栈
+   b:	48 89 75 e0          	mov    %rsi,-0x20(%rbp) //取argv的值保存入栈
+   f:	83 7d ec 04          	cmpl   $0x4,-0x14(%rbp)  //将argc的值与4做比较
+  13:	74 16                	je     2b <main+0x2b> //若等于则跳转至2b
+  15:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi     # 1c <main+0x1c> //访问.rodata，之后的函数调用也是这种方式
+			18: R_X86_64_PC32	.rodata-0x4  
+  1c:	e8 00 00 00 00       	callq  21 <main+0x21> 
+			1d: R_X86_64_PLT32	puts-0x4
+  21:	bf 01 00 00 00       	mov    $0x1,%edi  
+  26:	e8 00 00 00 00       	callq  2b <main+0x2b>
+			27: R_X86_64_PLT32	exit-0x4
+  2b:	c7 45 fc 00 00 00 00 	movl   $0x0,-0x4(%rbp) 
+  32:	eb 48                	jmp    7c <main+0x7c>
+  34:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+  38:	48 83 c0 10          	add    $0x10,%rax
+  3c:	48 8b 10             	mov    (%rax),%rdx
+  3f:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+  43:	48 83 c0 08          	add    $0x8,%rax
+  47:	48 8b 00             	mov    (%rax),%rax
+  4a:	48 89 c6             	mov    %rax,%rsi
+  4d:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi     # 54 <main+0x54>
+			50: R_X86_64_PC32	.rodata+0x22
+  54:	b8 00 00 00 00       	mov    $0x0,%eax
+  59:	e8 00 00 00 00       	callq  5e <main+0x5e>
+			5a: R_X86_64_PLT32	printf-0x4
+  5e:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+  62:	48 83 c0 18          	add    $0x18,%rax
+  66:	48 8b 00             	mov    (%rax),%rax
+  69:	48 89 c7             	mov    %rax,%rdi
+  6c:	e8 00 00 00 00       	callq  71 <main+0x71>
+			6d: R_X86_64_PLT32	atoi-0x4
+  71:	89 c7                	mov    %eax,%edi
+  73:	e8 00 00 00 00       	callq  78 <main+0x78>
+			74: R_X86_64_PLT32	sleep-0x4
+  78:	83 45 fc 01          	addl   $0x1,-0x4(%rbp)
+  7c:	83 7d fc 07          	cmpl   $0x7,-0x4(%rbp)
+  80:	7e b2                	jle    34 <main+0x34>
+  82:	e8 00 00 00 00       	callq  87 <main+0x87>
+			83: R_X86_64_PLT32	getchar-0x4
+  87:	b8 00 00 00 00       	mov    $0x0,%eax
+  8c:	c9                   	leaveq 
+  8d:	c3                   	retq  
+
+```
+
+​	可见相较于编译阶段，反汇编得到的汇编语句有了一些细微差别
+
+​	1.分支转移：编译阶段代码跳转指令还是段名称，但是在汇编阶段使用的是确定的地址。
+
+​	2.函数调用：在编译阶段，函数的调用是直接用函数的名称，而在反汇编程序中call的目标地址是当前的下一条指令。因为hello.c中的函数是共享库中的函数，地址并不确定。因此反汇编后就在call指令后的相对地址全设置为0，然后在.rel.text节中为其添加重定位条目，并在链接阶段进一步确定。
+
+​	3.只读变量字符串的访问。原先是使用段名称加上栈帧的值，而在反汇编后也是用0加上栈帧来确定，因.rodata的数据地址也是不确定的，访问还需要重定位。
+
+​	汇编阶段的可重定位文件翻译为机器码，对应的汇编语句也更加简练。一些回滚机制等已经确定，就被过滤掉了。机器语言就是处理器的指令集及使用它们编写程序的规则，汇编语句都有相应的机器码对应。字节存储方式也与硬件大小端存储方式息息相关。
+
+​	查看一下.data
+
+![image-20200525001946441](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525001946441.png)
+
+ 	可以在.rodata里面找到那两组字符串。
+
+### 4.5 本章小结
+
+​	本章介绍了汇编的过程，通过objdump等工具详尽的分析了可重定位文件的结构，同时通过反汇编大致明白了从汇编至机器语言之间的映射关系。
+
+## 第5章 链接
+
+### 5.1 链接的概念与作用
+
+​	链接是将各种代码和数据片段(文件中调用的各种函数及静态库和动态库链接)收集并组合为一个单一文件(可执行文件)的过程，链接器可将头文件中引用的函数并入到程序中，解析未定义的符号引用，将目标文件中的占位符替换为符号的地址。打包好后这个文件可被加载至内存中并执行。链接可以在多个阶段执行，如在编译阶段、加载阶段甚至运行阶段。
+
+​	库是预先编译好的目标文件的集合，是一种可执行代码的二进制形式。它们可以被链接进程序。库分为静态库和动态库(共享库)，静态库在Linux下以特殊的方式存储。一般标准系统库可以在/usr/lib/libm.a中找到，其中包含ANSI/ISO标准指定的函数。静态库的一大优点就是可以在不用重新编译程序库代码的情况下，进行程序的重新链接，这种方法节省了编译过程的时间。静态库在编译阶段就已经将引用的库的内容复制到了程序中，而后在链接阶段会将汇编生成的.o文件与引用的库一起链接打包到可执行文件中，又称静态链接。静态库一个很大的问题就是浪费空间和资源，因为如果每次编译都要拷贝到源程序中，这样会占用很多内存，因此，我们就需要引入动态库。动态库是在程序预先做好标记，待到运行时可以沿着标记找到被引用的库，这样可以实现进程的共享。
+
+​	hello程序若是手动链接需要用到如下的几种库：
+
+​	1.ld-linux-x86-64.so.2
+
+​	ld-linux-x86-64.so.2是Linux下的动态库加载器/链接器。ld-linux.so是专门负责寻找库文件的库，而ld-linux.so本身的位置在程序中已经在gcc编译阶段写进去了。这里不再做深入讨论。
+
+​	2.crt系列
+
+​	crt是c runtime的缩写，用于执行进入main之前的初始化和退出main之后的收尾工作。crt1.o、crti.o、crtbegin.o、crtend.o和crtn.o分别对应着启动、初始化、构造、析构和结束的功能。crt1.o包含.init段、.fini段和程序的入口函数_start以及两个未定义的符号_libc_start_main和main。.init段和.fini段与crti.o和crtn.o直接相关，.init段负责初始化，其中保存着可执行指令，构成了进程的初始化代码。fini段负责清理，其中包含了终止代码指令。.init后由_start负责调用_libc_start_main来初始化libc，初始化后才开始调用源码中的main函数。crtbegin.o、crtend.o两个文件主要配合glibc来实现全局构造等等(C++必用)。gcc的配置文件specfile规定了上述这种链接顺序。当可执行文件执行，先装载所有共享obj库，而后构造正确的.init和.fini，再之后才正式执行程序。
+
+### 5.2 在Ubuntu下链接的命令
+
+```
+ld -dynamic-linker /lib64/ld-linux-x86-64.so.2  /usr/lib/x86_64-linux-gnu/crt1.o /usr/lib/x86_64-linux-gnu/crti.o /usr/lib/gcc/x86_64-linux-gnu/5/crtbegin.o hello.o -lc /usr/lib/gcc/x86_64-linux-gnu/5/crtend.o /usr/lib/x86_64-linux-gnu/crtn.o -z relro -o hello
+```
+
+![image-20200525002124574](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525002124574.png)
+
+### 5.3 可执行目标文件hello的格式
+
+​	分析hello的ELF格式，用readelf等列出其各段的基本信息，
+
+​	包括各段的起始地址，大小等信息。
+
+​	上文我们曾分析过可重定位目标文件的格式，可执行文件与其类似，我们借用readelf来分析一下前面得到的hello程序。
+
+![image-20200525002149466](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525002149466.png)
+
+​	首先看一下ELF头
+
+​	hello.o
+
+![image-20200525002201296](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525002201296.png)
+
+​	hello
+
+![image-20200525002226497](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525002226497.png)
+
+​	与可重定位的elf头做一下比较，发现文件类型已经从REL转变为EXEC，说明现在文件可被执行。除此之外，原先像程序入口这样的参数已经有了确定的值，节的数目比可重定位文件多了12个。
+
+​	hello各节信息如下：
+
+![image-20200525002241476](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525002241476.png)
+
+![image-20200525002246943](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525002246943.png)
+
+![image-20200525002252110](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525002252110.png)
+
+### 5.4 hello的虚拟地址空间
+
+​	从0x400200开始，在edb中可以清晰的看到进程虚拟地址空间各节的信息。
+
+![image-20200525002317967](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525002317967.png)
+
+### 5.5 链接的重定位过程分析
+
+![image-20200525002343934](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525002343934.png)
+
+```
+0000000000400602 <main>:
+  400602:	55                   push   %rbp
+  400603:	48 89 e5             	mov    %rsp,%rbp
+  400606:	48 83 ec 20          	sub    $0x20,%rsp
+  40060a:	89 7d ec             	mov    %edi,-0x14(%rbp)
+  40060d:	48 89 75 e0          	mov    %rsi,-0x20(%rbp)
+  400611:	83 7d ec 04          	cmpl   $0x4,-0x14(%rbp)
+  400615:	74 16                	je     40062d <main+0x2b>
+  400617:	48 8d 3d 8a 00 00 00 	lea    0x8a(%rip),%rdi        # 4006a8 <_IO_stdin_used+0x8>
+  40061e:	e8 cd fe ff ff       	callq  4004f0 <puts@plt>
+  400623:	bf 01 00 00 00       	mov    $0x1,%edi
+  400628:	e8 03 ff ff ff       	callq  400530 <exit@plt>
+  40062d:	c7 45 fc 00 00 00 00 	movl   $0x0,-0x4(%rbp)
+  400634:	eb 48                	jmp    40067e <main+0x7c>
+  400636:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+  40063a:	48 83 c0 10          	add    $0x10,%rax
+  40063e:	48 8b 10             	mov    (%rax),%rdx
+  400641:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+  400645:	48 83 c0 08          	add    $0x8,%rax
+  400649:	48 8b 00             	mov    (%rax),%rax
+  40064c:	48 89 c6             	mov    %rax,%rsi
+  40064f:	48 8d 3d 78 00 00 00 	lea    0x78(%rip),%rdi        # 4006ce <_IO_stdin_used+0x2e>
+  400656:	b8 00 00 00 00       	mov    $0x0,%eax
+  40065b:	e8 a0 fe ff ff       	callq  400500 <printf@plt>
+  400660:	48 8b 45 e0          	mov    -0x20(%rbp),%rax
+  400664:	48 83 c0 18          	add    $0x18,%rax
+  400668:	48 8b 00             	mov    (%rax),%rax
+  40066b:	48 89 c7             	mov    %rax,%rdi
+  40066e:	e8 ad fe ff ff       	callq  400520 <atoi@plt>
+  400673:	89 c7                	mov    %eax,%edi
+  400675:	e8 c6 fe ff ff       	callq  400540 <sleep@plt>
+  40067a:	83 45 fc 01          	addl   $0x1,-0x4(%rbp)
+  40067e:	83 7d fc 07          	cmpl   $0x7,-0x4(%rbp)
+  400682:	7e b2                	jle    400636 <main+0x34>
+  400684:	e8 87 fe ff ff       	callq  400510 <getchar@plt>
+  400689:	b8 00 00 00 00       	mov    $0x0,%eax
+  40068e:	c9                   	leaveq 
+  40068f:	c3                   	retq   
+
+```
+
+​	与前文hello.o的汇编进行比较，在链接过程中ld命令指定了前文所述的动态链接器，链接过程中彻底将函数加入程序中。链接器解析重定位的信息时需要对R_X86_64_PC32和R_X86_64_PLT32进行重定位。对于R_X86_64_PLT32，此时动态链接库的函数已经加入PLT中，.text与.plt节相对位置已经确定，链接器负责计算并对动态链接库中函数的调用值改为PLT中相应函数与下条指令的相对地址，并指向被调用函数。对于R_X86_64_PC32，即对.rodata重定位，也是确定字符串和代码段的相对距离，链接器直接修改call后面字节为目标地址与call下一条指令的地址之差，令其指向相应的字符串。
+
+​	重定位过程中，链接器将代码每个符号应用和一个符号定义关联起来，并获得目标代码节和数据节的确切大小，而后，链接器将所有输入到hello中相同类型的节合并为同一类型的聚合节并修改hello对每个符号的引用，使其都能指向正确的地址。
+
+### 5.6 hello的执行流程
+
+​	使用edb执行hello，大致顺序是从hello!__start开始，__
+
+依次是libc-2.29.so! __libc_start_main、____libc-2.29.so!__cxa_atexit_main、libc-2.29.so!__libc_csu_init、hello!_init、libc-2.29.so!__setjmp、hello!main、hello!puts@plt、hello!printf@plt、hello!getchar@plt、hello!atoi@plt、hello!exit@plt、hello!sleep@plt和hello!_fini__
+
+### 5.7 Hello的动态链接分析
+
+_init前plt
+
+![image-20200525002731496](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525002731496.png)
+
+_init后plt
+
+![image-20200525002742715](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525002742715.png)
+
+​	PLT算是一个数组，查看symbol，发现.got的位置在0x601000处，可发现在_init前后有明显的差别。
+
+### 5.8 本章小结
+
+​	本章大致介绍了hello.o经过链接得到可执行文件hello的过程。
+
+## 第6章 hello进程管理
+
+### 6.1 进程的概念与作用
+
+​	在现代系统上运行一个程序时，我们会得到一个假象，仿佛此时正在运行的程序就是系统中当前运行的唯一程序一样，而这些假象都是进程做到的。
+
+​	进程的经典定义就是一个执行中程序的示例。系统中每个程序都运行在某个进程的上下文中，上下文是由程序正确运行所需的状态组成的，这些状态包括存放在内存中程序的代码与数据，栈，通用目的寄存器的内容，程序计数器，环境变量以及打开文件描述符的集合。每次用户向shell中输入一个可执行文件的名字并运行程序时，shell就会新建一个进程，然后在这个新进程的上下文中于运行可执行文件。当然，应用程序也是可以创建新的进程的，然后在新进程的上下文中运行自己的代码。在操作系统中具有专门的进程控制块PCB，Linux下是task_struct结构体来描述进程，通过双向链表来将结构体组织起来管理。task_struct结构体这里不做深入探究。
+
+​	进程提供给程序最关键的两个抽象就是一个独立的逻辑控制流和一个私有的地址空间，是计算机科学中最深刻最成功的概念。
+
+### 6.2 简述壳Shell-bash的作用与处理流程
+
+​	这里涉及到shell的概念。shell俗称壳来与核互相区分。shell是为用户提供操作界面，即命令行解释器，接受用户的输入后解释命令，再将其传入系统内核，内核根据传入的命令调用硬件进行操作。由此可见Linux系统由内向外分别是硬件、内核、外围程序再就是用户，其中shell处于内核与用户之间。shell有多种版本，最早的是Unix上的sh，但是处理上不如后来Linux上的bash。bash算是sh的扩展，在Linux中一般在/bin/bash中。
+
+![image-20200525002856338](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525002856338.png)
+
+​	shell的工作流程是先读取用户由键盘输入的命令行后，分析命令，检查命令是否是内部命令，若不是再检查是否是一个应用程序。以命令名为文件名并将其的参数改造为系统调用execve()内部处理所要求的格式。然后调用fork建立一个子进程，终端本身保存当前上下文，并调用系统函数wait4()来等待子进程完成。当子进程运行时调用execve()，子进程会根据命令名到目录中查找有关文件，将其加载至内存。
+
+### 6.3 Hello的fork进程创建过程
+
+​	一个进程包括代码、数据和分配给进程的资源。严格来说在Linux中创建一个进程一共有四种方式，即三个系统调用fork、vfork、clone和kernel_thread内核函数，而之际创建过程都是do_fork实现的。我们只分许通过系统调用fork()函数来创建新进程。
+
+​	调用fork()之后，内核会分配新的内存块和内核数据结构给子进程，并将父进程部分数据结构内容拷贝给子进程。这时系统进程列表就可以看到创建的子进程。进程创建就类似数据结构中链表的形成一样。fork产生的子进程和父进程可以实现相同的功能，若初始参数或者传入的变量不同，则两个进程就会区分开来。
+
+​	Linux下实际的调用函数顺序如下：
+
+​	fork()、sys_fork()、do_fork()和copy_process()
+
+​	简单阐释这个过程，就是从用户空间中调用fork函数到执行系统调用产生软件中断陷入内核空间，在内核空间中执行do_fork()函数。do_fork函数首先会创建前面提到的进程描述符指针task_struct *p和子进程pid，接着会创建子进程的一些描述符和数据结构，即调用copy_process()。copy_process函数在做完进程数目检查和安全性检查后就会复制进程信息，如调用dup_task_struc函数来复制父进程的页表，调用copy_thread来初始化子进程的内核栈，设置pid等等。若子进程与父进程在同一线程组，则子进程将继承父进程的tpid。
+
+​	综上，整个fork过程中，子进程创建机制实现的关键就围绕在copy_process()函数上。这里不再做深入讨论。进程终结后就会释放占有的资源，由父进程和内核回收。
+
+### 6.4 Hello的execve过程
+
+​	与进程创建过程相似，对可执行文件的执行，Linux的方式也有很多种，如execl、execlp、execle、execv、exexvp和execve等，使用差异就主要体现在shell识别的参数和环境变量参数上。这些函数的最终目的就是改变进程执行的上下文。
+
+​	我们主要讨论execve函数，原型如下所示：
+
+```
+#include<unistd.h>
+int execve(const char *filename, char *const argv[ ], char *const envp[ ]);
+```
+
+​	其中第一个参数是用来执行参数filename字符串所代表的文件路径，第二个参数是利用数组指针来传递给文件，并需要以空指针(NULL)结束。最后一个参数是传递给执行文件的新环境变量数组。execve()与fork的区别就是将当前程序替换为要执行的程序，因此要保留原上下文的情况要运行新的程序就要让二者相结合。
+
+​	首先execve()在内核空间分配一个物理页面，然后调用do_getname()从用户空间拷贝文件名字符串，之后，不论是哪种方法，这些函数最终都要调用sys_execve函数来实现执行可执行文件的目的。sys_execve的系统调用顺序为sys_execve、do_execve()、do_execve_common()、search_binary_handler()和start_thread()。具体实现改变上下文的操作是在do_execve_common()中，首先一个文件流打开加载的可执行文件，获得文件句柄file，然后创建一个Linux_binprm结构体来存储当前环境变量envp和命令行参数argv，之后接受shell传入的上下文和参数进结构体。根据读入文件头部来寻找可执行文件的处理函数，如根据文件格式在内核全局Linux_binfmt队列中找到一个能够处理参数中所给的可执行文件的Linux_binfmt结构。然后再循环寻找可以解析当前可执行文件的代码。既然要执行参数中的文件，那么就需要放弃可能从父进程中继承下来的用户空间来使用子进程自己的空间。这样就可以装载可执行文件的数据段和代码段了。不过根据可执行文件的类别，系统会采取不同的调用方式，若文件内不是纯代码，则需要通过do_brk()函数来扩展数据段加上代码段大小的空间，然后利用read函数读取文件内容，这些就是Unix IO操作了，这里不做讨论。否则，直接通过文件映射将内容读取到用户空间。
+
+​	等上述工作都完成后，系统会调用start_kernel()来开启一个新进程来执行该文件。
+
+​	若是要实现真正的进程切换，还需要对进程调度做深层的讨论。
+
+​	简单总结，execve若想加载并运行可执行文件，首先要删除当前进程的用户区域，其次就是映射到私有区域，创建新的区域结构：代码段映射到.text，数据段映射到.data，而.bss、栈和堆请求二进制零，初始长度为0。第三步是映射共享区域，先将对象动态链接，而后再映射到用户虚拟地址的共享区域。最后是设置当前进程上下文的程序计数器，指向代码的入口点。之后系统调用就在此执行。
+
+### 6.5 Hello的进程执行
+
+​	hello进程是普通用户进程，在没设置模式位时进程就处于用户模式，不允许直接引用地址空间内核区的数据。设置后就会进入内核模式，可访问任何位置。hello上下文信息是由通用寄存器、浮点寄存器、程序计数器、状态寄存器、用户栈、内核栈和各种内核数据结构的值组成，而在时间上可将一个进程的控制流分成一块块时间片。
+
+​	当一个进程被fork出来后就进入了就绪态。当被调度到获得CPU执行时会进入执行态；若时间片用完或被强占后就会进入就绪态，若资源得不到满足就会进入睡眠态，一般网络程序的进程会涉及到这点。
+
+​	下面以hello为例。
+
+​	首先在shell里面输入
+
+![image-20200525003110586](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525003110586.png)
+
+​	Shell判断不是内置命令后会加载当前目录的可执行文件hello，后面是三个参数。这时shell通过fork创建了一个子进程，两个进程并发运行，fork会返回两次，在父进程返回子进程pid，在子进程返回0。在源程序中，首先printf会主动触发系统中断，exit函数和后面for循环内调用了sleep函数都会触发中断。此时内核就会接管进程，即进入内核模式。下图比较清晰的描述了进程的切换模式。
+
+![image-20200525003123705](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525003123705.png)
+
+### 6.6 hello的异常与信号处理
+
+​	hello程序正常执行的效果如下图，设置秒数为1，经过八次循环后进程被回收，按下回车键就退出程序回到父进程。
+
+![image-20200525003152440](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525003152440.png)
+
+​	当我们放飞自我，随意乱按时，进程的表现如下图
+
+![image-20200525003205961](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525003205961.png)
+
+​	没有任何影响。
+
+​	疯狂乱按并回车时，表现如下图
+
+![image-20200525003216713](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525003216713.png)
+
+​	Getchar函数会在我们敲下回车符后将我们输入的字符串视为命令行进行输入。
+
+​	输入ctrl-c时，父进程会强行终止并回收子进程，如下图
+
+![image-20200525003226353](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525003226353.png)
+
+​	按crtl-Z后，用ps查看，发现进程依然存在
+
+![image-20200525003242381](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525003242381.png)
+
+​	用jobs查看，jobs可以列出当前已启动进程的状态，图中显示其已经停止
+
+![image-20200525003256959](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525003256959.png)
+
+​	使用pstree命令，如下图
+
+![image-20200525003306752](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525003306752.png)
+
+​	以树状图形式显示的是当前进程。
+
+​	使用fg后如下图
+
+![image-20200525003332801](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525003332801.png)
+
+​	发现程序继续执行直到回车退出。
+
+### 6.7本章小结
+
+​	本章以hello为例，简单介绍了进程的概念及其生命周期，并以shell为工具介绍了hello的fork和execve过程，以图片的形式介绍了进程执行中模式的切换，和异常下的处理。
+
+## 第7章 hello的存储管理
+
+### 7.1 hello的存储器地址空间
+
+​	结合hello说明逻辑地址、线性地址、虚拟地址、物理地址的概念：
+
+​	为了实现虚拟存储器提供的硬件支持，现代CPU不仅采用扩充的存储器段式管理机制，还提供了可选的存储器分页管理机制。
+
+​	地址空间是一个非负整数地址的有序集合，若其中整数连续就是线性地址空间。一个系统具有虚拟内存通过地址空间生成的虚拟地址空间和对应物理内存的物理地址空间。其中，物理地址就是将计算机的主存被组织为一个M个连续字节大小的单元组成的数组后每个字节对应的唯一的地址。物理地址与处理器和CPU连接的地址总线相对应，CPU对内存的访问是通过连接着CPU和北桥芯片的前端总线来完成的。前端总线上传输的内存地址都是物理内存地址，可以把物理地址近似理解为一个逐字编号的大数组。逻辑地址就是指由程序产生的与段相关的偏移地址部分。逻辑地址由一个段和偏移量组成，偏移量指明从段开始的地方到实际地址之间的距离。即hello.o里面的相对偏移地址，平时写程序打交道的都是逻辑地址。线性地址一般是逻辑地址到物理地址变换之间的中间层，逻辑地址再加上基地址就是线性地址。虚拟地址则是在CPU启动保护模式下，程序访问寄存器所使用的逻辑地址，但是内核初始化页表前用的还是物理地址。
+
+### 7.2 Intel逻辑地址到线性地址的变换-段式管理
+
+​	Intel的CPU在启动后就处于实模式，从8086起开始有一个新模式叫保护模式。
+
+​	一个逻辑地址由段标识符和段内偏移量组成，段标识符是由一个16位长的字段组成，前13位是段描述符的索引号，每个对应一个数组，有一个统一的数据结构(Base字段)来定义这些复杂的段确定的基地址。后面1位是确定是全局段描述符表还是局部段描述符表。最后两位是请求特权级。
+
+​	原本在实模式下，CPU的分段机制是规定逻辑地址=线性地址，由段地址加上32位的偏移量得出，段地址保存在段寄存器中。而在保护模式下，线性地址还需要经过分页机制才能得到物理地址，线性地址也需要逻辑地址通过段机制来得到。简单概述为解析段寄存器的段选择符在段描述表中根据索引选择目标描述符，提取出Base地址，然后加上偏移量最终确定线性地址。
+
+### 7.3 Hello的线性地址到物理地址的变换-页式管理
+
+​	我们以一个进程中虚拟内存区域的Linux内核数据结构为例，如下图
+
+![image-20200525003508839](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525003508839.png)
+
+​	以上是已经存在的虚拟内存的连续片，这些页以某种方式相互关联。Linux将虚拟内存组织为一些段的集合，内核为hello进程维护一个单独的任务结构，即task_struct，是我们前文提过的结构体。任务结构中的元素包含进程的所有信息。其中任务结构中的一个条目指向mm_struct，它描述了虚拟内存的当前状态。还有两个字段值得注意，即pgd和mmap。Pgd指向第一级页表的基地址，mmap指向一个vm_area_struct的链表，该链表中每个vm_area_struct都描述了当前虚拟空间地址的一个区域，即每个条目对应一个段，一个链表结构指出了hello的所有段。而后，系统将每个段分割为虚拟页，由MMU负责使用存放在物理内存中的页表将虚拟页映射到物理页，完成虚拟地址到物理地址的映射。
+
+### 7.4 TLB与四级页表支持下的VA到PA的变换
+
+​	每次CPU产生一个虚拟地址，MMU就必须查阅一个PTE，以便将虚拟地址翻译为物理地址，会造成巨大的开销。所以设计者引入了TLB，TLB是一个小的、虚拟地址的缓存，其中每一行都保存着一个由单个PTE组成的块。当TLB命中时，CPU会产生一个新的虚拟地址，MMU从TLB中取出相应的PTE，并将其翻译为一个物理地址，并发送到高速缓存中，由高速缓存来将请求的数据返回给CPU。当TLB不命中，MMU就必须从L1缓存中取出相应的PTE。如下图，新取出的PTE存放在TLB中，可能会覆盖一个已经存在的条目。
+
+![image-20200525003539197](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525003539197.png)
+
+​	下图描述了使用k级页表层次结构的地址翻译。
+
+![image-20200525003549808](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525003549808.png)
+
+​	在Intel Core i7环境下研究VA到PA的地址翻译问题
+
+![image-20200525003602215](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525003602215.png)
+
+​	上图是Core i7地址翻译情况，CPU先产生虚拟地址VA，将其传入MMU中，由MMU向TLB中匹配。如前文提到的情况，若命中，将PPN和VPO组合得到物理地址PA。若未命中，则MMU会在图中四级页表中确定PPN，再与VPO组合为PA。
+
+​	一般情况下不会出现异常，但若查询PTE时发现不在物理内存中会引发缺页故障。
+
+### 7.5 三级Cache支持下的物理内存访问
+
+​	继续以Core i7为例，当得到PA后，将物理地址拆解为CT+CI+CO的结构，对CI进行组索引，分别将块匹配到CT的各个位上，匹配成功即命中，若匹配不成功就向下一级缓存中查询数据。查询到数据后，若组内块空闲则直接放置，若不是空闲就会引发冲突，就有新的放置策略。
+
+###  7.6 hello进程fork时的内存映射
+
+​	前文我们详细讲过fork的过程，当内核位新进程创建虚拟内存时，会将两个进程的每个页面标为只读，并将两个进程中每个区域结构都标记为私有的写时复制。当fork从hello进程返回时，hello的虚拟内存刚好与父进程的相同，这样当两个进程中任一个进行写操作时，写时复制机制就会创建新页面，即为每个进程保持了私有地址空间的抽象概念。
+
+### 7.7 hello进程execve时的内存映射
+
+​	当调用execve时，因前文已经说过了，这里再简要概括一下：execve先删除已存在的用户区域后，分别映射了共享区域和私有区域。其中共享区域是将与程序动态链接的共享对象映射过去的位置，而私有区域就是程序的数据结构。最后，execve还要设置程序计数器，指向代码的入口点。
+
+![image-20200525003705566](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525003705566.png)
+
+### 7.8 缺页故障与缺页中断处理
+
+​	当MMU查找页表时发现虚拟地址对应的物理地址不在内存中时就会引发缺页故障。若当前指令导致缺页故障，就会触发中断，这时控制权会移交给程序。若故障无法修复就要么重新执行要么终止。
+
+### 7.9动态存储分配管理
+
+​	尽管可以使用低级的mmap和munmap函数来创建和删除虚拟内存的区域，但时在运行大型程序时难免需要额外的虚拟内存。动态内存分配器维护着一个进程的虚拟内存区域，为堆。分配器将堆视为一组不同大小的块的集合，每个块就是连续的虚拟内存片。
+
+![image-20200525003744072](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525003744072.png)
+
+![image-20200525003750003](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525003750003.png)
+
+​	对每个进程，内核维护着一个变量brk，指向堆的顶部。堆紧接着未初始化的数据区域开始，不断向上生长。
+
+​	分配器有两种风格，分别是显式分配器和隐式分配器。区别仅是堆块的释放方式。C标准库提供了malloc程序包作为显式分配器，并通过free函数释放一个块。另一方面，要求分配器检测一个已分配块何时不再被程序所使用，那么就释放这个块。因此隐式分配器也叫垃圾收集器。
+
+​	一般动态内存的管理是依靠链表结构来实现的，显示隐式之间也有一定的区别。
+
+![image-20200525003808699](C:\Users\abcfh\AppData\Roaming\Typora\typora-user-images\image-20200525003808699.png)
+
+​	我们可以将堆组织为一个连续的已分配块和空闲块的序列，上图中阴影部分就是已分配的块，没有阴影的就是空闲块。这种结构就是隐式空闲链表，分配器通过遍历所有的块，从而间接的遍历整个空闲块的集合。显式结构在空闲块中添加了8个字节，分别保存当前空闲块的地址和后继空间块的地址。显式结构比隐式结构多维护了一个链表，这样在malloc时显式结构可直接在空闲块中维护的链表遍历即可，大大降低了复杂度。
+
+### 7.10本章小结
+
+​	本章讨论了存储器的结构，各种地址的概念，TLB与四级页表支持下的物理地址和虚拟地址的变换等等。
+
+## 第8章 hello的IO管理
+
+### 8.1 Linux的IO设备管理方法
+
+​	一个Linux文件就是一个m字节的序列，而所有I/O设备都可以被优雅的模型化为一个个文件，所有的输入输出都被当作对相应文件的读和写来执行，这样就允许Linux内核引出一个简单低级的应用接口。这就是Linux的IO设备管理办法。一般一个应用程序要求通过内核打开相应的文件，并宣告它将要访问一个I/O设备时，内核会返回一个小的非负整数，即描述符fd，应用程序自始至终都会记住这个描述符。文件描述符大致的生命周期就是先创建file对象，然后根据对象的类型注册各个操作函数，而后将file对象的指针注册到进程描述符的files数组里的fd下标处，再就是read等I/O操作了，最后用close(fd)释放file对象。下面将以简化后的内核代码为例
+
+```
+fd = get_unused_fd();
+if (fd >= 0) 
+{ 
+struct file *f = filp_open(tmp, flags, mode); 
+fd_install(fd, f);
+}
+
+```
+
+​	以上的简化代码是系统对open的调用，其中，get_unused_fd就是从当前进程描述符中打开文件数组里取得的一个空闲项，然后返回数组下标。 file_open最终将调用get_empty_file分配一个新的文件对象，而fd_install是将上一个步骤创建的文件对象的指针存到该进程打开的文件数组中，而后就是read，write等常见I/O操作了。file对象不同，操作函数的类型也不同。
+
+​	在Linux中shell创建的每个进程开始时都有三个打开的文件：标准输入(fd = 0)、标准输出(fd = 1)和标准错误(fd = 2)，在头文件unisted.h中定义了相关常量可代替显式的描述符值。当文件打开后，对于这些文件，内核保持一个文件位置k，初始为0。这个文件位置是从文件开头起始的字节偏移量，应用程序通过执行seek操作可显式的设置文件当前位置k。
+
+​	读操作就是从文件复制n>0个字节到内存，从当前文件位置k开始，然后将k增加到k+n。给定一个大小为m字节的文件，当k大于等于时m执行读操作会触发EOF条件。当结束对文件的访问后应用程序会通知内核关闭这个文件，作为响应，内核释放文件打开时创建的数据结构，并将描述符恢复到可用的描述符池中。
+
+### 8.2 简述Unix IO接口及其函数
+
+​	前面已经说过，Unix I/O是将设备映射为文件的方式，并允许内核引出一个简单的应用接口，相关系统函数很简单，即open、close、read、write、lseek、stat和close。更高级的RIO和标准I/O都是基于Unix I/O函数实现的。
+
+​	在Linux系统中每个文件都有一个类型，如普通文件、目录、套接字、命名通道、符号链接和块设备等。其中，对应用程序而言，普通文件还分为文本文件和二进制文件。我们打开shell后，在当前上下文中进程会有一个当前工作目录，跟据路径名可找出当前工作目录的文件名。
+
+​	open函数的原型为
+
+```
+int open(char *filename, int flags, mode_t mode)
+```
+
+​	其中，flag参数指明进程打算访问哪个文件，flag最基本的参数有三个：O_RDONLY(只读)，O_WRONLY(只写)，O_RDWR(可读可写)，此外flag参数还可以添加额外的指示。mode参数指定了新文件的访问权限位，我们可以利用每个进程都有的umask函数来设置。
+
+​	我们想以读的方式打开一个已存在的文件的代码如下：
+
+```
+fd = open(“foo.txt”, O_REONLY, 0);
+```
+
+​	读操作read函数原型为
+
+```
+ssize_t read(int fd, void *buf, size_t n)
+```
+
+​	其过程是将描述符fd的当前文件位置复制最多n个字节到内存位置buf。若成功则返回读的字节数，遇到EOF返回0，出错返回-1。写操作write函数与read函数类似：ssize_t write(int fd, const void *buf, size_t n);与read相反，写操作是将内存位置buf复制最多n个字节到描述符fd当前的文件位置。若成功返回写入的字节数，出错返回-1。
+
+​	我们也可以通过调用lseek函数显式地修改当前文件位置。lseek函数原型为
+
+```
+off_t lseek(int fd, off_t offset, int whence)
+```
+
+lseek一般用来对动态文件即文件流进行操作
+ 
+
+​	stat函数一般用来检索文件信息，在其数据结构中有st_mode和st_size等成员，Linux在sys/stat.h中定义了宏谓词来确定st_mode的成员类型。
+
+​	以上操作都结束后，进程会调用close函数：int close(int fd)来关闭文件。
+
+### 8.3 printf的实现分析
+
+​	首先看一下printf的函数体
+
+```
+int printf(const char *fmt, ...)
+{
+   int i;
+   char buf[256];
+     va_list arg = (va_list)((char*)(&fmt) + 4);
+     i = vsprintf(buf, fmt, arg);
+     write(buf, i);
+     return i;
+}
+
+```
+
+​	printf函数内部调用了两个外部函数，分别是vsprintf和write函数。printf的功能主要是接受字符串数组fmt，然后按照格式写入。va_list是一个字符指针，arg表示函数的参数。
+
+​	vsprintf的代码如下所示
+
+```
+int vsprintf(char *buf, const char *fmt, va_list args) 
+   { 
+    	char* p; 
+    	char tmp[256]; 
+    	va_list p_next_arg = args; 
+    	for (p=buf;*fmt;fmt++) { 
+    		if (*fmt != '%') { 
+    		*p++ = *fmt; 
+    		continue; 
+    		} 
+    		fmt++; 
+    		switch (*fmt) { 
+    			case 'x': 
+    			itoa(tmp, *((int*)p_next_arg)); 
+    			strcpy(p, tmp); 
+    			p_next_arg += 4; 
+    			p += strlen(tmp); 
+    			break; 
+    			case 's': 
+    			break; 
+    			default: 
+    			break; 
+    		} 
+  	 	} 
+   
+       return (p - buf); 
+   }
+
+```
+
+​	vsprintf的作用主要是接受确定输出格式的格式字符串fnt，用格式字符串对个数变化的参数进行格式化，产生格式化输出，最后返回要打印的字符串的长度。
+
+​	write函数在syscall.asm里，代码如下所示
+
+```
+write:
+      mov eax, _NR_write
+      mov ebx, [esp + 4]
+      mov ecx, [esp + 8]
+      int INT_VECTOR_SYS_CALL
+```
+
+​	这里是给寄存器传递几个参数，然后调用sys_call函数，代码如下所示
+
+```
+ sys_call:
+       call save
+       push dword [p_proc_ready]
+       sti
+       push ecx
+       push ebx
+       call [sys_call_table + eax * 4]
+       add esp, 4 * 3
+       mov [esi + EAXREG - P_STACKBASE], eax
+       cli
+       ret
+```
+
+​	 其中，call save是用来保存中断前进程状态，将字符串中的字节从寄存器中通过总线复制到显卡的显存中，即存储字符的ASCII码。字符显示驱动子程序就是从ASCII到字模库到显示vram（存储每一个点的RGB颜色信息），显示芯片按照刷新频率逐行读取vram，并通过信号线向液晶显示器传输每一个点(RGB分量)。
+
+### 8.4 getchar的实现分析
+
+​	getchar函数是stdio.h中的库函数，函数原型如下
+
+```
+int getchar(void)
+```
+
+​	功能是从stdin流读入一个字符，但若缓冲区已经有数据就会直接读取缓冲区的字符，返回读取字符的ASCII值或EOF字符或出错值。读入操作需要调用read函数，将缓冲区读入一个数组中。
+
+​	异步异常-键盘中断的处理：键盘中断处理子程序。接受按键扫描码转成ascii码，保存到系统的键盘缓冲区。
+
+getchar等调用read系统函数，通过系统调用读取按键ascii码，直到接受到回车键才返回。
+
+### 8.5本章小结
+
+​	本章简述了Linux下I/O设备的管理机制，Unix I/O接口及函数。以printf函数和getchar函数为例简要分析了其实现原理。
+
+本章简述了Linux下I/O设备的管理机制，Unix I/O接口及函数。以printf函数和getchar函数为例简要分析了其实现原理。
+
+# 结论
+
+Hello进程的诞生到结束：
+    1.源程序编写：编辑器
+
+​    2.预处理：预处理器
+
+​    3.编译：编译器
+
+​    4.汇编：汇编器
+
+​    5.链接：链接器
+
+​    6.键入命令：shell
+
+​    7.创建子进程：fork
+
+​    8.加载：execve
+
+​    9.执行：CPU分配时间片，此时进程占用CPU的资源
+
+​    10.访问内存：MMU将虚拟地址映射为物理地址
+
+​    11.动态申请：malloc+free
+
+​    12.中断(可能)：出现异常或ctrl-c，上下文切换，进入内核模式。进程结束或挂起，
+
+​    13.结束：父进程回收子进程，内核删除子进程数据结构
+
+# 附件
+
+hello.c：源程序
+
+hello.i：预处理文件
+
+hello.s：编译文件
+
+hello.o：汇编后的可重定位文件
+
+hello_o.S：可重定位文件的反汇编
+
+hello：可执行文件
+
+hello.S：可执行文件反汇编
+
+hello.elf：hello的elf
+
+hello.txt：hello.o的ELF格式
+
+# 参考文献
+
+[1] https://blog.csdn.net/farsight2009/article/details/54601927
+
+[2] http://www.manongjc.com/article/59140.html
+
+[3] [ https://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html](file:///C:/Users/abcfh/Desktop/大作业/ https:/gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html)
+
+[4] https://www.jianshu.com/p/eb2ad95c8e1b
+
+[5] https://blog.csdn.net/weixin_42109012/article/details/102707457
+
+[6] https://blog.csdn.net/u013736724/article/details/53200539
+
+[7] https://blog.csdn.net/pro_technician/article/details/78173777
+
+[8] https://www.jianshu.com/p/e385ff61dd7c
+
+[9] https://www.jianshu.com/p/e385ff61dd7c
+
+[10] http://blog.sina.com.cn/s/blog_c84aa4f20101dzwv.html
+
+[11] http://linux.web.cern.ch/linux/scientific4/docs/rhel-as-en-4/cfi-directives.html
+
+[12]https://blog.csdn.net/jltxgcy/article/details/39157599?utm_medium=distribute.pc_relevant.none-task-blog-BlogCommendFromMachineLearnPai2-2.nonecase&depth_1-utm_source=distribute.pc_relevant.none-task-blog-BlogCommendFromMachineLearnPai2-2.nonecase
+
+[13] https://blog.csdn.net/xing1584114471/article/details/90320991
+
+[14] https://blog.csdn.net/elfprincexu/article/details/51701242
+
+[15] https://blog.csdn.net/farmwang/article/details/73195951
+
+[16] https://blog.csdn.net/weixin_40853073/article/details/81873398
+
+[17] https://www.cnblogs.com/qiuheng/p/5752284.html
+
+[18] https://www.cnblogs.com/jxhd1/p/6706701.html
+
+[19] https://blog.csdn.net/xwy990/article/details/88831231
+
+[20]https://blog.csdn.net/gemini_star/article/details/4368414?utm_source=blogxgwz13
+
+[21] https://www.cnblogs.com/JaSonS-toy/p/5110199.html
+
+[22] https://blog.csdn.net/wr_iskye/article/details/83418135。
+
+[23] https://www.cnblogs.com/pianist/p/3315801.html
+
+[24] https://blog.csdn.net/c1204611687/article/details/86133774
+
+ 
