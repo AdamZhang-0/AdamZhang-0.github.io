@@ -4,12 +4,12 @@
 # ---------------------------------------------------------------
 
 # Site
-title: 乌龙茶馆
-subtitle:
-description:
-author: John Doe
+title: Clang裁缝店
+subtitle: 缝纫机的使用与维修
+description: I love blingbling.
+author: 老板娘
 # Support language: de, en, fr-FR, id, ja, ko, pt-BR, pt, ru, zh-Hans, zh-hk, zh-tw
-language: en
+language: zh-Hans
 date_format: '%Y-%m-%d'
 
 # URL
@@ -19,7 +19,7 @@ baseurl:
 permalink: pretty
 
 # Pagination
-paginate: 10
+paginate: 100
 #paginate_path: "/page:num/"
 #archive:
   #paginate: 10
@@ -32,7 +32,7 @@ paginate: 10
   #paginate_path: "/page:num/"
 
 # Handling Reading
-exclude: [".rvmrc", ".rbenv-version", "README.md", "Rakefile", "changelog.md", "Gemfile", "Gemfile.lock", "README_en.md", "vendor"]
+exclude: [".rvmrc", ".rbenv-version", "README.md", "Rakefile", "changelog.md", "Gemfile", "Gemfile.lock", "README_en.md"]
 
 # Separator
 #excerpt_separator: <!-- more -->
@@ -40,8 +40,6 @@ exclude: [".rvmrc", ".rbenv-version", "README.md", "Rakefile", "changelog.md", "
 # Code Highlighter
 ## 'pygments' is unsupported on GitHub Pages now.
 highlighter: rouge
-highlight:
-  line_number: true
 
 #### Markdown Processors
 ## 'redcarpet' is unsupported on GitHub Pages now.
@@ -67,7 +65,8 @@ feed:
 # Plugins
 ## Docs: https://help.github.com/articles/configuring-jekyll-plugins/
 plugins:
- - jemoji
+# jemoji conficts with toc in some no-ascii post
+# - jemoji
  - jekyll-sitemap
  - jekyll-feed
 
@@ -118,8 +117,8 @@ index_with_subtitle: false
 # When running the site in a subdirectory (e.g. domain.tld/blog), remove the leading slash (/archives -> archives)
 menu:
   home: /
-  #categories: /categories/
-  #about: /about/
+  categories: /categories/
+  about: /about/
   archives: /archives/
   tags: /tags/
   #sitemap: /sitemap.xml
@@ -213,7 +212,11 @@ font:
 # Social Links
 # Key is the link label showing to end users.
 # Value is the target link (E.g. GitHub: https://github.com/iissnan)
-#social:
+social:
+  GitHub: https://github.com/xuanxuanblingbling
+  微博: https://weibo.com/u/5143351412
+  知乎: https://www.zhihu.com/people/xuan-pla/answers
+  b站: https://space.bilibili.com/29361517
   #LinkLabel: Link
 
 
@@ -233,7 +236,8 @@ social_icons:
 
 # Sidebar Avatar
 # in directory: /assets/images/avatar.gif
-#avatar:
+
+avatar: /assets/images/image.jpg
 
 
 # Table Of Contents in the Sidebar
@@ -282,6 +286,16 @@ sidebar:
 
 # Blog rolls
 #links_title: Links
+links_title: Links
+links:
+  媳妇: https://blingblingxuanxuan.github.io/
+  s3cunda: https://s3cunda.github.io/
+  极目楚天舒: https://qiutianshu.wordpress.com/
+  卓教授: https://0lddriv3r.github.io/blog/index.html
+  小路小站: https://wrlus.com/
+  Car1: https://carlstar.club/
+  楚涵: http://www.wchhlbt.cn/
+
 #links_layout: block
 #links_layout: inline
 #links:
@@ -387,32 +401,6 @@ disqus:
   # count need to be false when hide is true
   hide: false
 
-# <wildfire>
-wildfire:
-  enable: false
-  # version - It's recommended to use the following versions.
-  loaderVersion: 1.2.5 # https://www.npmjs.com/package/wildfire-comment
-  useDev: true
-  version: 0.5.6 
-  # database config
-  databaseProvider: firebase # or wilddog
-  firebase: # your firebase config goes here ↓
-    apiKey: 
-    authDomain:
-    databaseURL:
-    projectId:
-    storageBucket:
-    messagingSenderId:
-  wilddog: # your wilddog config goes here ↓
-    siteId:
-  # other configs
-  theme: light # or dark
-  locale: en # or other locales, e.g. zh-CN
-  defaultAvatarURL: 
-# Any question? 
-# Raise an issue here: https://github.com/cheng-kang/wildfire/issues
-# </wildfire>
-
 # Hypercomments
 #hypercomments_id:
 
@@ -431,16 +419,7 @@ changyan:
 
 # Support for LiveRe comments system.
 # You can get your uid from https://livere.com/insight/myCode (General web site)
-#livere_uid: your uid
-
-# Support for gitalk comments system.
-gitalk:
-  enable: false
-  clientID: # 54730ddf7b9420460c03
-  clientSecret: # c05684701b25ff1c19ea0c01ce4d80c125e0707d
-  repo: # colingpt.github.io
-  owner: # colingpt
-  admin: # colingpt
+livere_uid: MTAyMC80Mjg0Ni8xOTM5Mw==
 
 # Baidu Share
 # Available value:
@@ -586,7 +565,7 @@ algolia_search:
 
 # Local search
 local_search:
-  enable: false
+  enable: true
   # if auto, trigger search by changing input
   # if manual, trigger search by pressing enter key or search button
   trigger: auto
@@ -736,4 +715,3 @@ images: assets/images
 
 # Theme version
 version: 5.1.1
-repository: AdamZhang-0/AdamZhang-0.github.io
