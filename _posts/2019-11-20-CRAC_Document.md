@@ -1,20 +1,13 @@
-___
+---
 
-
-
-title:CRAC_Document
-
-date:2019-11-20
-
-description:CRAC参赛经历
-
+title: CRAC_Document
+date: 2019-11-20 0:00:00
+description: CRAC参赛经历
 categories:
 
-- VLOGS
+ - vlogs
 
-___
-
-
+---
 
 # CRAC_Document
 
