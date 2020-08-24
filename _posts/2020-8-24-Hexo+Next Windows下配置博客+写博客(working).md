@@ -1,6 +1,6 @@
 ---
 
-title: Hexo + Next Windows下配置博客+写博客(working)
+title: Hexo+Next Windows下配置博客+写博客(working)
 date: 2020-8-24 0:00:00
 description: 搭建博客的经验与心得
 categories:
